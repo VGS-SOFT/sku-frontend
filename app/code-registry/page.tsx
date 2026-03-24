@@ -6,7 +6,6 @@ import { Plus, Pencil, Trash2, Search, Lock } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader,
@@ -26,6 +25,18 @@ const CODE_TYPES: CodeType[] = [
   'CATEGORY', 'MATERIAL', 'PRODUCT_TYPE',
   'COLOR', 'STYLE', 'FINISH', 'SIZE', 'CUSTOM',
 ];
+
+// Human-readable description for each type — shown as hint when CUSTOM is selected
+const CODE_TYPE_HINTS: Record<string, string> = {
+  CATEGORY: 'Use for top-level or sub product categories (e.g. Vagha, Idol).',
+  MATERIAL: 'Use for raw material type (e.g. Silk, Brass, Marble, Cotton).',
+  PRODUCT_TYPE: 'Use for product type classification within a category.',
+  COLOR: 'Use for color variants (e.g. Red, Golden, White).',
+  STYLE: 'Use for occasion / style tags (e.g. Daily, Festival, Winter).',
+  FINISH: 'Use for surface finish (e.g. Gold Polish, Matte, Minakari).',
+  SIZE: 'Use for size variants — idol numbers (s1-s6), chowki sizes, pack weights.',
+  CUSTOM: 'Use for any dimension that does not fit standard types above. Example: Scent, Packaging, Shape, Weight class, Brand, etc.',
+};
 
 const EMPTY_FORM: CreateCodeRegistryForm = {
   label: '', code: '', type: 'CUSTOM', description: '',
@@ -172,7 +183,7 @@ export default function CodeRegistryPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((code, i) => (
+                {filtered.map((code) => (
                   <tr key={code.id} className={cn('border-b border-border last:border-0 hover:bg-muted/30 transition-colors', !code.isActive && 'opacity-50')}>
                     <td className="px-4 py-3 text-sm font-medium">{code.label}</td>
                     <td className="px-4 py-3">
@@ -218,17 +229,18 @@ export default function CodeRegistryPage() {
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editTarget ? 'Edit Code' : 'Register New Code'}</DialogTitle>
             <DialogDescription>
               {editTarget
-                ? 'Only label and description can be changed. Code is immutable.'
+                ? 'Only label and description can be changed. Code and type are immutable.'
                 : 'Code must be lowercase alphanumeric, globally unique.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Label */}
             <div className="space-y-1.5">
               <Label>Label *</Label>
               <Input
@@ -238,6 +250,7 @@ export default function CodeRegistryPage() {
               />
             </div>
 
+            {/* Short Code */}
             <div className="space-y-1.5">
               <Label>Short Code *</Label>
               <Input
@@ -250,27 +263,46 @@ export default function CodeRegistryPage() {
               <p className="text-xs text-muted-foreground">Lowercase letters and numbers only. Cannot be changed after creation.</p>
             </div>
 
+            {/* Type — only on create */}
             {!editTarget && (
               <div className="space-y-1.5">
                 <Label>Type *</Label>
-                <Select value={form.type} onValueChange={(v) => setForm(f => ({ ...f, type: v as CodeType }))}>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm(f => ({ ...f, type: v as CodeType }))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CODE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    {CODE_TYPES.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {/* Type hint — always visible, especially useful for CUSTOM */}
+                <p className="text-xs text-muted-foreground bg-muted/50 border border-border rounded px-3 py-2 leading-relaxed">
+                  {CODE_TYPE_HINTS[form.type] ?? ''}
+                </p>
               </div>
             )}
 
+            {/* Description */}
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>Description
+                {form.type === 'CUSTOM' && !editTarget && (
+                  <span className="ml-1 text-xs text-amber-600 font-normal">(recommended for CUSTOM types)</span>
+                )}
+              </Label>
               <Textarea
-                placeholder="Optional notes about this code..."
+                placeholder={
+                  form.type === 'CUSTOM'
+                    ? 'Describe what this CUSTOM code represents. e.g. "Scent type for agarbatti — used in SKU segment position 4"'
+                    : 'Optional notes about this code...'
+                }
                 value={form.description ?? ''}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                rows={2}
+                rows={form.type === 'CUSTOM' ? 3 : 2}
               />
             </div>
 
