@@ -32,12 +32,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = await authApi.me();
       setUser(data);
     } catch {
+      // Not authenticated — that's fine, just clear user
       setUser(null);
+    } finally {
+      // ALWAYS stop loading, whether success or failure
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refreshUser().finally(() => setLoading(false));
+    // Add a small timeout so it doesn't flash on fast connections
+    const timer = setTimeout(() => {
+      refreshUser();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
@@ -47,9 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await authApi.logout();
-    setUser(null);
-    router.push('/login');
+    try {
+      await authApi.logout();
+    } catch {
+      // ignore
+    } finally {
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   return (

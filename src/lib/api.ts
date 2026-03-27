@@ -4,11 +4,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1
 
 export const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // send httpOnly cookies
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
+  // Timeout after 8 seconds — prevents infinite hanging
+  timeout: 8000,
 });
 
-// Response interceptor — auto redirect to /login on 401
+// Response interceptor — auto-redirect on 401
 if (typeof window !== 'undefined') {
   api.interceptors.response.use(
     (res) => res,
@@ -20,7 +22,8 @@ if (typeof window !== 'undefined') {
           await api.post('/auth/refresh');
           return api(originalRequest);
         } catch {
-          window.location.href = '/login';
+          // Refresh failed — just reject, AuthContext will handle redirect
+          return Promise.reject(error);
         }
       }
       return Promise.reject(error);

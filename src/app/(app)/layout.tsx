@@ -11,23 +11,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Only redirect AFTER loading is done
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Show spinner only briefly while checking auth
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
           <p className="text-xs text-gray-400">Loading...</p>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) return null;
+  // Not authenticated — render nothing while redirect fires
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
+          <p className="text-xs text-gray-400">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-white">
