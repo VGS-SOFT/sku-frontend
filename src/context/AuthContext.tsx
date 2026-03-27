@@ -1,10 +1,13 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import {
+  createContext, useContext, useEffect,
+  useState, useCallback, useRef,
+} from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { authApi } from '@/lib/api';
 
-interface User {
+export interface User {
   id: number;
   email: string;
   name: string;
@@ -22,31 +25,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const PUBLIC_PATHS = ['/login'];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]         = useState<User | null>(null);
   const [isLoading, setLoading] = useState(true);
-  const router = useRouter();
+  const router   = useRouter();
+  const pathname = usePathname();
+  const checked  = useRef(false);
 
   const refreshUser = useCallback(async () => {
     try {
       const { data } = await authApi.me();
       setUser(data);
     } catch {
-      // Not authenticated — that's fine, just clear user
       setUser(null);
     } finally {
-      // ALWAYS stop loading, whether success or failure
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Add a small timeout so it doesn't flash on fast connections
-    const timer = setTimeout(() => {
-      refreshUser();
-    }, 100);
-    return () => clearTimeout(timer);
+    if (checked.current) return;
+    checked.current = true;
+    refreshUser();
   }, [refreshUser]);
+
+  // Route guard — fires after loading resolves
+  useEffect(() => {
+    if (isLoading) return;
+    const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p));
+    if (!user && !isPublic) {
+      router.replace('/login');
+    }
+    if (user && isPublic) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, user, pathname, router]);
 
   const login = async (email: string, password: string) => {
     const { data } = await authApi.login(email, password);
@@ -55,14 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // ignore
-    } finally {
-      setUser(null);
-      router.push('/login');
-    }
+    try { await authApi.logout(); } catch { /* ignore */ }
+    setUser(null);
+    router.replace('/login');
   };
 
   return (

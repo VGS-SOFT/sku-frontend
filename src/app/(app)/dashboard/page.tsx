@@ -8,18 +8,40 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardPage() {
-  const { data: analytics } = useQuery({ queryKey: ['analytics'], queryFn: () => skusApi.analytics().then(r => r.data) });
-  const { data: masters   } = useQuery({ queryKey: ['masters'],   queryFn: () => mastersApi.list().then(r => r.data) });
-  const { data: varTypes  } = useQuery({ queryKey: ['varTypes'],  queryFn: () => variantsApi.listTypes().then(r => r.data) });
-  const { data: cats      } = useQuery({ queryKey: ['categories'],queryFn: () => categoriesApi.list().then(r => r.data) });
+  const { user } = useAuth();
+
+  const { data: analytics } = useQuery({
+    queryKey: ['analytics'],
+    queryFn:  () => skusApi.analytics().then(r => r.data),
+    retry: false,
+  });
+  const { data: masters  = [] } = useQuery({
+    queryKey: ['masters'],
+    queryFn:  () => mastersApi.list().then(r => r.data),
+    retry: false,
+  });
+  const { data: varTypes = [] } = useQuery({
+    queryKey: ['varTypes'],
+    queryFn:  () => variantsApi.listTypes().then(r => r.data),
+    retry: false,
+  });
+  const { data: cats     = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn:  () => categoriesApi.list().then(r => r.data),
+    retry: false,
+  });
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   const stats = [
-    { label: 'Master Categories', value: masters?.length ?? 0,          icon: FolderTree, href: '/masters' },
-    { label: 'Total Categories',  value: cats?.length ?? 0,             icon: Tags,       href: '/categories' },
-    { label: 'Variant Types',     value: varTypes?.length ?? 0,         icon: Layers,     href: '/variants' },
-    { label: 'SKUs Generated',    value: analytics?.totalActive ?? 0,   icon: Barcode,    href: '/catalog' },
+    { label: 'Master Categories', value: masters?.length  ?? 0, icon: FolderTree, href: '/masters'    },
+    { label: 'Total Categories',  value: cats?.length     ?? 0, icon: Tags,       href: '/categories' },
+    { label: 'Variant Types',     value: varTypes?.length ?? 0, icon: Layers,     href: '/variants'   },
+    { label: 'SKUs Generated',    value: analytics?.totalActive ?? analytics?.total ?? 0, icon: Barcode, href: '/catalog' },
   ];
 
   return (
@@ -27,18 +49,19 @@ export default function DashboardPage() {
       {/* Hero */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-950">Good morning 👋</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-950">
+            {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
+          </h2>
           <p className="mt-1 text-sm text-gray-500">Here’s what’s happening with your SKU catalog.</p>
         </div>
         <Link href="/skus">
           <Button size="sm">
-            <Plus className="h-3.5 w-3.5" />
-            Generate SKU
+            <Plus className="h-3.5 w-3.5" /> Generate SKU
           </Button>
         </Link>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, href }) => (
           <Link key={href} href={href}>
@@ -62,14 +85,14 @@ export default function DashboardPage() {
         <h3 className="mb-3 text-sm font-semibold text-gray-900">Quick actions</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: 'Add Master',     href: '/masters',    desc: 'Create a master category' },
-            { label: 'Add Category',   href: '/categories', desc: 'Build category tree' },
-            { label: 'Add Variant',    href: '/variants',   desc: 'Define variant types' },
-            { label: 'Bulk Import',    href: '/import',     desc: 'Import product list' },
+            { label: 'Add Master',   href: '/masters',    desc: 'Create a master category' },
+            { label: 'Add Category', href: '/categories', desc: 'Build category tree'       },
+            { label: 'Add Variant',  href: '/variants',   desc: 'Define variant types'      },
+            { label: 'Bulk Import',  href: '/import',     desc: 'Import product list'       },
           ].map((a) => (
             <Link key={a.href} href={a.href}>
-              <Card className="group cursor-pointer p-4 transition-all hover:shadow-md hover:border-gray-200">
-                <p className="text-sm font-medium text-gray-900 group-hover:text-black">{a.label}</p>
+              <Card className="group cursor-pointer p-4 transition-all hover:shadow-md">
+                <p className="text-sm font-medium text-gray-900">{a.label}</p>
                 <p className="mt-0.5 text-xs text-gray-400">{a.desc}</p>
                 <ArrowRight className="mt-2 h-3.5 w-3.5 text-gray-300 group-hover:text-gray-600 transition-colors" />
               </Card>
@@ -86,17 +109,21 @@ export default function DashboardPage() {
         </div>
         <Card>
           <div className="divide-y divide-gray-50">
-            {analytics?.recentActivity?.length === 0 && (
-              <p className="p-6 text-center text-sm text-gray-400">No SKUs generated yet.</p>
-            )}
-            {analytics?.recentActivity?.map((sku: any) => (
+            {(!analytics?.recentActivity || analytics.recentActivity.length === 0) ? (
+              <div className="flex flex-col items-center py-10">
+                <p className="text-sm text-gray-400">No SKUs generated yet.</p>
+                <Link href="/skus" className="mt-2 text-xs font-medium text-gray-700 underline underline-offset-4">Generate your first SKU →</Link>
+              </div>
+            ) : analytics.recentActivity.map((sku: any) => (
               <div key={sku.id} className="flex items-center justify-between px-5 py-3.5">
                 <div>
-                  <p className="font-mono text-sm font-medium text-gray-900">{sku.sku}</p>
+                  <p className="font-mono text-sm font-semibold text-gray-900">{sku.sku}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{sku.productName}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{sku.category?.master?.code}</Badge>
+                  {sku.category?.master?.code && (
+                    <Badge variant="secondary">{sku.category.master.code}</Badge>
+                  )}
                   <span className="text-xs text-gray-400">{formatDate(sku.createdAt)}</span>
                 </div>
               </div>

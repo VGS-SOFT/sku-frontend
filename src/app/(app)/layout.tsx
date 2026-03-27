@@ -1,42 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Topbar } from '@/components/layout/topbar';
+import { Topbar }  from '@/components/layout/topbar';
 import { useAuth } from '@/context/AuthContext';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
 
-  useEffect(() => {
-    // Only redirect AFTER loading is done
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  // Show spinner only briefly while checking auth
-  if (isLoading) {
+  // While checking auth — show clean full-page spinner
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
-          <p className="text-xs text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Not authenticated — render nothing while redirect fires
-  if (!isAuthenticated) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
-          <p className="text-xs text-gray-400">Redirecting to login...</p>
-        </div>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
       </div>
     );
   }
